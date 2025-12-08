@@ -128,60 +128,13 @@ export const validatedCourse = (responseText: string, topic: string) => {
                 title: lesson.title || `Lesson ${index + 1}`,
                 content: lesson.content || `This lesson covers important concepts about ${topic}.`,
                 completed: false,
-                questions: [] as Array<{
-                    question: string;
-                    options: string[];
-                    correct: number;
-                    userAnswer: number | null;
-                }>
+                // Questions are now optional and generated lazily
+                questions: undefined
             };
 
-            // Validate and process questions
-            if (lesson.questions && Array.isArray(lesson.questions)) {
-                validatedLesson.questions = lesson.questions.map((q: any, qIndex: number) => {
-                    // Ensure question has valid structure
-                    const question = q.question || `Question ${qIndex + 1}`;
-                    let options = ['A', 'B', 'C', 'D'];
-                    let correct = 0;
-
-                    if (Array.isArray(q.options) && q.options.length >= 2) {
-                        options = q.options.slice(0, 4); // Limit to 4 options
-                        // Pad with generic options if less than 4
-                        while (options.length < 4) {
-                            options.push(`Option ${options.length + 1}`);
-                        }
-                    }
-
-                    if (typeof q.correct === 'number' && q.correct >= 0 && q.correct < options.length) {
-                        correct = q.correct;
-                    }
-
-                    return {
-                        question,
-                        options,
-                        correct,
-                        userAnswer: null
-                    };
-                });
-            }
-
-            // Ensure at least one question per lesson
-            if (validatedLesson.questions.length === 0) {
-                validatedLesson.questions.push({
-                    question: `What did you learn from this lesson about ${topic}?`,
-                    options: [
-                        'Important concepts',
-                        'Basic principles',
-                        'Key fundamentals',
-                        'Core ideas'
-                    ],
-                    correct: 0,
-                    userAnswer: null
-                });
-            }
-
             return validatedLesson;
-        })
+        }),
+        status: 'ready' as const
     };
     return validatedCourse;
 }

@@ -1,144 +1,188 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast, Toaster } from 'sonner'
-import { TopicInput } from '@/components/TopicInput'
-import { CourseContent } from '@/components/CourseContent'
-import { Settings } from '@/components/Settings'
 import { useStore } from './store'
 import { Footer } from './components/footer'
-import { WebWorkerMLCEngine } from '@mlc-ai/web-llm'
-import { generateCoursePrompt, systemPrompt } from './lib/prompt'
-import { validatedCourse } from './components/validate'
+import { WebWorkerMLCEngine, prebuiltAppConfig } from '@mlc-ai/web-llm'
+import { validatedCourse, } from './components/validate'
+import { generateCoursePrompt, systemPrompt, generateQuizPrompt } from './lib/prompt'
+import { WebGPUCheck } from './components/WebGPUCheck'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HomePage } from './pages/HomePage'
+import { CoursePage } from './pages/CoursePage'
+import { SettingsPage } from './pages/SettingsPage'
+import { Button } from './components/ui/button'
+import { Settings as SettingsIcon } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-function App() {
+function AppContent() {
+  const navigate = useNavigate();
   const [, setGeneratingTopic] = useState<string>('')
-  const [viewMode, setViewMode] = useState<'input' | 'course'>('input')
-  const [selectedCourseIndex, setSelectedCourseIndex] = useState<number>(0)
-  const { courses, topic, setTopic, settings, addCourse, setIsGenerating } = useStore()
+  const { courses, setTopic, settings, addCourse, updateCourse, addLessonQuestions, setIsGenerating } = useStore()
   const engineRef = useRef<WebWorkerMLCEngine | null>(null);
 
-
   useEffect(() => {
-    const initEngine = async () => {
-      if (!engineRef.current) {
-        toast.info('Initializing AI model...', { id: 'init-engine', description: 'This may take a few seconds...Depends on the model and the topic.' })
-        const { CreateWebWorkerMLCEngine } = await import('@mlc-ai/web-llm')
-        engineRef.current = await CreateWebWorkerMLCEngine(
-          new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }),
-          settings.defaultModel,
-          {
-            initProgressCallback: (progress) => {
-              toast.info('Initializing AI model...', {
-                id: 'init-engine',
-                description: `Initializing AI model...${progress.progress.toFixed(2)}%`
-              })
-            },
-          }
-        )
-        toast.success('AI model initialized!')
+    async function init() {
+      // Create a web worker for the engine to keep the UI responsive
+      // We use a relative path to the worker script
+      const engine = new WebWorkerMLCEngine(
+        new Worker(
+          new URL('./worker.ts', import.meta.url),
+          { type: 'module' }
+        ),
+        { appConfig: prebuiltAppConfig }
+      );
+
+      // Reload model if settings change (simplified logic, in real app might need more robust handling)
+      engine.setInitProgressCallback((report) => {
+        // You can update a progress store here if you want global model loading progress
+        console.log('Init:', report.text);
+      });
+
+      await engine.reload(settings.defaultModel);
+      engineRef.current = engine;
+      console.log('Engine ready');
+    }
+
+    // Only init if not already (simple check)
+    if (!engineRef.current) {
+      init().catch(err => console.error('Engine Init Error:', err));
+    }
+  }, [settings.defaultModel]);
+
+
+  const handleGenerateCourse = useCallback(async (topicInput: string): Promise<number | null> => {
+    setTopic(topicInput);
+    setIsGenerating(true);
+
+    if (!engineRef.current) {
+      toast.error('AI Engine not ready yet. Please wait.');
+      setIsGenerating(false);
+      return null;
+    }
+
+    // 1. Create Draft Course & Redirect Immediately
+    const draftIndex = courses.length;
+    addCourse({
+      title: `${topicInput} Course`,
+      description: `Generating comprehensive course about ${topicInput}...`,
+      progress: 0,
+      score: 0,
+      lessons: [],
+      status: 'generating'
+    });
+
+    toast.info('Starting course generation...', { duration: 2000 });
+
+    // Return index immediately for navigation
+    // API/LLM call happens in background
+    (async () => {
+      try {
+        const response = await engineRef.current!.chat.completions.create({
+          messages: [
+            { role: 'system', content: systemPrompt(settings.language) },
+            { role: 'user', content: generateCoursePrompt(topicInput) }
+          ],
+          max_tokens: settings.maxTokens,
+          temperature: settings.temperature,
+          response_format: { type: 'json_object' }
+        });
+
+        const responseText = response.choices[0]?.message?.content?.trim();
+        const courseData = validatedCourse(responseText as string, topicInput);
+
+        if (courseData) {
+          updateCourse(draftIndex, { ...courseData, status: 'ready' });
+          toast.success('Course content generated!');
+        } else {
+          updateCourse(draftIndex, { status: 'error', description: 'Failed to generate content.' });
+          toast.error('Failed to generate valid course content.');
+        }
+      } catch (error) {
+        console.error(error);
+        updateCourse(draftIndex, { status: 'error', description: 'Error occurred during generation.' });
+        toast.error('Error generating course.');
+      } finally {
+        setIsGenerating(false);
+        setGeneratingTopic('');
       }
-    }
-    initEngine()
+    })();
 
-    // cleanup
-    return () => {
-      engineRef.current?.unload()
-      engineRef.current = null
-    }
-  }, [])
+    return draftIndex;
+  }, [settings, addCourse, updateCourse, setIsGenerating, setGeneratingTopic, courses.length, setTopic]);
 
-  const handleGenerateCourse = useCallback(async () => {
-    setTopic(topic)
-    setIsGenerating(true)
-    if (!engineRef.current) return
-    toast.info('Generating course...', { id: 'generating-course', dismissible: false, description: 'This may take a few seconds...Depends on the model and the topic.' })
-    const startTime = performance.now()
-    const response = await engineRef.current?.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt(settings.language) },
-        { role: 'user', content: generateCoursePrompt(topic) }
-      ],
-      max_tokens: settings.maxTokens,
-      temperature: settings.temperature,
-      response_format: { type: 'json_object' }
-    })
-    const endTime = performance.now()
-    const duration = endTime - startTime
-    toast.info(`Course generated in ${duration.toFixed(2)}ms`)
-    const responseText = response.choices[0]?.message?.content?.trim()
-    const course = validatedCourse(responseText as string, topic)
-    toast.success('Course generated!')
-    if (course) {
-      addCourse(course)
-      setGeneratingTopic('')
-      setSelectedCourseIndex(courses.length)
-      setViewMode('course')
-      setIsGenerating(false)
-    } else {
-      toast.error('Failed to generate course!')
-    }
-  }, [topic, settings, addCourse, setIsGenerating, setGeneratingTopic, setSelectedCourseIndex, courses])
+  const handleGenerateQuiz = useCallback(async (courseIndex: number, lessonIndex: number) => {
+    const course = courses[courseIndex];
+    const lesson = course?.lessons[lessonIndex];
 
-  const handleBackToInput = () => {
-    setViewMode('input')
-    setSelectedCourseIndex(0)
-  }
+    if (!course || !lesson || !engineRef.current) return;
+
+    toast.info('Generating quiz...');
+    try {
+      const response = await engineRef.current.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt(settings.language) },
+          { role: 'user', content: generateQuizPrompt(course.title, lesson.title, lesson.content) }
+        ],
+        temperature: 0.5, // Lower temp for quiz accuracy
+        response_format: { type: 'json_object' }
+      });
+
+      const text = response.choices[0]?.message?.content || '';
+      // Simple parsing (add robust validation in real app similar to courses)
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const cleanJson = jsonMatch ? jsonMatch[0] : text;
+      const data = JSON.parse(cleanJson);
+
+      if (data.questions && Array.isArray(data.questions)) {
+        addLessonQuestions(courseIndex, lessonIndex, data.questions);
+        toast.success('Quiz generated!');
+      } else {
+        throw new Error('Invalid quiz format');
+      }
+
+    } catch (error) {
+      console.error("Quiz generation error:", error);
+      toast.error('Failed to generate quiz.');
+    }
+  }, [courses, settings, addLessonQuestions]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Settings Modal */}
-      <Settings />
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 font-sans text-foreground flex flex-col">
+      <WebGPUCheck />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {viewMode === 'input' ? (
-            <div className="space-y-8">
-              <TopicInput onGenerateCourse={handleGenerateCourse} />
+      {/* Floating Settings Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-4 right-4 z-50 bg-background/50 backdrop-blur-md rounded-full hover:bg-background/80 shadow-sm border"
+        onClick={() => navigate('/settings')}
+      >
+        <SettingsIcon className="w-5 h-5" />
+      </Button>
 
-              {/* Show existing courses if any */}
-              {courses.length > 0 && (
-                <div className="space-y-4">
-                  <h2 className="text-xl font-semibold text-center">Previous Courses</h2>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {courses.map((course, index) => (
-                      <div
-                        key={index}
-                        className="p-4 border rounded-lg cursor-pointer hover:shadow-md transition-shadow bg-white"
-                        onClick={() => {
-                          setSelectedCourseIndex(index)
-                          setViewMode('course')
-                        }}
-                      >
-                        <h3 className="font-medium truncate">{course.title}</h3>
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                          {course.description}
-                        </p>
-                        <div className="mt-2">
-                          <div className="text-xs text-muted-foreground">
-                            {course.lessons.filter(l => l.completed).length}/{course.lessons.length} lessons completed
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <CourseContent
-              course={courses[selectedCourseIndex]}
-              courseIndex={selectedCourseIndex}
-              onBack={handleBackToInput}
-            />
-          )}
-        </div>
+      <div className="flex-1">
+        <Routes>
+          <Route path="/" element={<HomePage onGenerate={handleGenerateCourse} />} />
+          <Route path="/course/:id" element={<CoursePage onGenerateQuiz={handleGenerateQuiz} />} />
+          <Route path="/course/:id/lesson/:lessonId" element={<CoursePage onGenerateQuiz={handleGenerateQuiz} />} />
+          <Route path="/course/:id/lesson/:lessonId/quiz/:quizId" element={<CoursePage onGenerateQuiz={handleGenerateQuiz} />} />
+
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
       </div>
 
-      {/* Toast notifications */}
       <Toaster position="top-right" />
-
-      {/* Footer */}
       <Footer />
     </div>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   )
 }
 

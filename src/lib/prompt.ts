@@ -10,23 +10,30 @@ export const generateCoursePrompt = (topic: string) => `Create a comprehensive m
   "lessons": [
     {
       "title": "Lesson Title",
-      "content": "Detailed lesson content (2-3 paragraphs explaining the concept clearly)",
-      "completed": false,
-      "questions": [
-        {
-          "question": "Question text",
-          "options": ["Option A", "Option B", "Option C", "Option D"],
-          "correct": 0,
-          "userAnswer": null
-        }
-      ]
+      "content": "Detailed lesson content (3-5 paragraphs explaining the concept clearly in Markdown)",
+      "completed": false
     }
   ]
 }
-Create exactly 3 lessons, each with 2 quiz questions. Make the content educational, engaging, and appropriate for beginners. Ensure questions test understanding of the lesson content.
+Create exactly 3 lessons. Make the content educational, engaging, and appropriate for beginners. Use Markdown for lesson content to including headings, lists, and emphasis where appropriate.
 Return ONLY the JSON object, no additional text.`;
 
+export const generateQuizPrompt = (topic: string, lessonTitle: string, lessonContent: string) => `Create a short quiz for the lesson "${lessonTitle}" about "${topic}".
+Lesson Content: "${lessonContent.substring(0, 500)}..."
 
-export const systemPrompt = (language: string) => `You are a helpful assistant that generates micro-courses about a given topic. You are also a teacher and you are very good at teaching. ${language === 'auto' ? 'Make sure to respond in the language of the user.' : `Always respond in ${language} language.`}`;
+Return a JSON object with the format:
+{
+  "questions": [
+    {
+      "question": "Question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct": 0
+    }
+  ]
+}
+Create exactly 2 questions that test understanding of the key concepts. Return ONLY the JSON object.`;
 
 
+export const systemPrompt = (language: string) => `You are an expert educator and curriculum designer known for creating clear, engaging, and highly effective micro-courses. 
+Your goal is to explain complex topics in a simple, digestible way.
+${language === 'auto' ? 'Detect the language of the topic and respond in that same language.' : `Always respond in ${language} language.`}`;
