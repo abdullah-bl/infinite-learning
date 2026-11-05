@@ -1,0 +1,14 @@
+node_modules
+dist
+.output
+.nitro
+.tanstack
+.git
+.env
+.env.local
+onebase_data
+.test-data
+.taste-skill
+tests
+README.md
+fly.toml

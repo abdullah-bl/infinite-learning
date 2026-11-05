@@ -1,129 +1,76 @@
-# 🚀 Infinite Learning
+# Infinite Learning
 
-An AI-powered personalized learning platform that generates interactive micro-courses on any topic you're curious about. Built with React, TypeScript, and powered by local AI models running directly in your browser.
+Type any topic and an AI writes you a short course: lessons, a quiz for each, and four ideas for what to learn next. Every course ends by offering the next one, so there is always something to start.
 
-![Infinite Learning](./public/iinfinite-learning.png)
+Each lesson is a chapter in its own flat colour. The interface is in English and Arabic (right to left, with an Arabic typeface); it follows the browser's language and can be switched from the header or Settings. Courses are written in the interface language, whatever script the topic is typed in; Settings can pick another language for them.
 
-## ✨ Features
+## How it works
 
-- **🤖 AI-Powered Course Generation**: Uses WebLLM (Qwen3-0.6B model) to generate comprehensive courses on any topic
-- **📚 Interactive Learning**: Each course includes multiple lessons with detailed content and quizzes
-- **💾 Local Storage**: All courses are saved locally - no data leaves your browser
-- **🎯 Progress Tracking**: Track your learning progress across multiple courses
-- **📱 Responsive Design**: Beautiful, modern UI that works on all devices
-- **⚡ Fast & Offline**: AI model runs locally in your browser using WebGPU
+- **Web:** [TanStack Start](https://tanstack.com/start) (React 19) built as a static single-page app. It has no database and no AI key, and OneBase serves it, so there is no web server to run.
+- **Backend:** [OneBase](https://abdullah-bl.github.io/onebase/), a Convex-style backend in one binary with SQLite. The functions in [`onebase/`](onebase) store courses and call the AI. The browser holds a live connection, so a course fills in on the page as it is written.
+- **AI:** the free models on [OpenRouter](https://openrouter.ai). The key stays on the backend. `openrouter/free` is the default, with two fallbacks.
+- **A shared library.** Every finished course is kept once. The same request (same topic, language, level and length) is answered from it instantly, with no model call, and similar courses are offered while you type, matched by meaning across languages ([`onebase/library.ts`](onebase/library.ts): OneBase vector search, its action cache for embeddings, full-text search as the fallback). Learners rate courses; a version enough of them find poor stops being handed out, and "write a better version" rewrites it from what was marked ([`onebase/feedback.ts`](onebase/feedback.ts)).
+- **A knowledge map per learner.** Lessons name their key ideas; quiz answers and finished lessons say how well each is known ([`onebase/graph.ts`](onebase/graph.ts), the "my map" page). New courses build on known ideas and re-explain shaky ones, and such personal courses are not shared. Every quiz question comes back for review on a Leitner schedule: tomorrow after a wrong answer, then 3, 7, 16 and 35 days ([`onebase/reviews.ts`](onebase/reviews.ts), the review page).
+- **No accounts.** The browser makes up a random key and sends it with every call; it is the only thing that unlocks that person's courses. Settings shows the key so it can be copied to another device. Per-visitor and shared daily limits (in [`onebase/components.ts`](onebase/components.ts)) protect the free quota.
 
-## 🎯 How It Works
-
-1. **Enter a Topic**: Type in anything you want to learn about
-2. **AI Generation**: The local AI model creates a structured course with lessons and quizzes
-3. **Interactive Learning**: Work through lessons at your own pace
-4. **Test Knowledge**: Take quizzes to reinforce your learning
-5. **Track Progress**: See your completion status and scores
-
-## 🛠️ Tech Stack
-
-- **Frontend**: React 19 + TypeScript + Vite
-- **Styling**: Tailwind CSS 4 + Radix UI components
-- **AI Model**: WebLLM with Qwen3-0.6B (runs locally)
-- **State Management**: Zustand
-- **Icons**: Lucide React
-- **Notifications**: Sonner
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+ or Bun
-- Modern browser with WebGPU support (Chrome/Edge 113+, Firefox with experimental features)
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/infinite-learning.git
-cd infinite-learning
+```
+src/            the web app (routes, components, styles)
+onebase/        the backend: schema, queries, mutations, OpenRouter actions
+tests/          backend test against a mock OpenRouter
+Dockerfile      builds one executable: backend + web app
+fly.toml        the Fly app
 ```
 
-2. Install dependencies:
-```bash
-# Using npm
-npm install
+## Run it
 
-# Using bun (recommended)
+You need [Bun](https://bun.sh) 1.4.4 or later and a free [OpenRouter key](https://openrouter.ai/keys).
+
+```bash
 bun install
+cp .env.example .env.local   # then put your OPENROUTER_API_KEY in it
+bun run dev                  # backend on :8090, web on http://localhost:3000
 ```
-
-3. Start the development server:
-```bash
-# Using npm
-npm run dev
-
-# Using bun
-bun dev
-```
-
-4. Open your browser and navigate to `http://localhost:5173`
-
-### Building for Production
 
 ```bash
-# Using npm
-npm run build
-
-# Using bun
-bun run build
+bun test          # starts a mock OpenRouter and the backend, runs the API end to end
+bun run doctor    # OneBase's own check of the schema and functions
+bun run typecheck
 ```
 
-## 🔧 Configuration
+## Deploy to Fly.io
 
-The application uses the Qwen3-0.6B model by default. You can modify the model in `src/components/CourseGenerator.tsx`:
+One Fly app, one machine, one executable. The [`Dockerfile`](Dockerfile) builds the web app to static files and compiles them into the OneBase binary together with the functions. OneBase serves the pages (any path that isn't a file gets `index.html`, and the router takes over in the browser), the live connection and the dashboard on one port. SQLite lives on a Fly volume. It uses about 15 MB of memory.
 
-```typescript
-engineRef.current = await CreateWebWorkerMLCEngine(
-    new Worker(new URL('../worker.ts', import.meta.url), { type: 'module' }),
-    'Qwen3-0.6B-q4f32_1-MLC' // Change this to use a different model
-);
+Change the app name in [`fly.toml`](fly.toml) to one nobody has taken, and keep the two URLs in `[env]` in step with it.
+
+```bash
+fly apps create infinite-learning
+fly volumes create infinite_data -a infinite-learning -r fra -n 1 --size 1
+fly secrets set -a infinite-learning OPENROUTER_API_KEY=sk-or-... ONEBASE_ADMIN_KEY=$(openssl rand -hex 24)
+fly deploy
 ```
 
-## 📁 Project Structure
+SQLite allows one writer, so keep exactly one machine; don't scale it out. The dashboard is at `/_admin` and asks for `ONEBASE_ADMIN_KEY`. Add `ONEBASE_BACKUP=s3://...` to keep snapshots off the volume (see the OneBase backups guide).
 
-```
-src/
-├── components/
-│   ├── ui/              # Reusable UI components (buttons, cards, etc.)
-│   ├── CourseContent.tsx    # Main course viewing interface
-│   ├── CourseGenerator.tsx  # AI course generation logic
-│   ├── Quiz.tsx            # Interactive quiz component
-│   └── TopicInput.tsx      # Topic input form
-├── lib/
-│   └── utils.ts        # Utility functions
-├── store.ts            # Zustand state management
-├── worker.ts           # Web Worker for AI model
-└── App.tsx             # Main application component
+**Changing the model.** Set `OPENROUTER_MODELS` (up to three ids, comma separated): `fly secrets set -a infinite-learning OPENROUTER_MODELS=openrouter/free,google/gemma-4-31b-it:free`.
+
+**Trying the image locally** (the backend needs a key; add `-e OPENROUTER_API_KEY=...`):
+
+```bash
+docker build -t infinite-learning .
+docker run --rm -p 8080:8080 -e OPENROUTER_API_KEY=sk-or-... infinite-learning
 ```
 
-## 🤝 Contributing
+## Design
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+Colour chapters: full-bleed flat fields (ultramarine, black, yellow, pink) on one grid, one typeface ([Pilcrow Rounded](https://www.fontshare.com/fonts/pilcrow-rounded)), no gradients, shadows or cards. The masthead pictures are public-domain scans from Wikimedia Commons (credited in the footer). The title card in the masthead sets whatever you type.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## Languages
 
-## 📄 License
+The interface strings are in [`src/lib/i18n.ts`](src/lib/i18n.ts), one table per language. To add a language, add a table there and a button in Settings. The backend sends error codes, not sentences, so every message is worded in the visitor's language by the web app.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## History
 
-## 🙏 Acknowledgments
+The first version ran a small model in the browser with WebLLM and kept courses in local storage. Small local models weren't good enough, so this version moved the writing to hosted free models and the storage to a backend. That code is in the git history.
 
-- [WebLLM](https://github.com/mlc-ai/web-llm) for enabling local AI models in the browser
-- [Radix UI](https://www.radix-ui.com/) for accessible UI components
-- [Tailwind CSS](https://tailwindcss.com/) for styling
-- [Lucide](https://lucide.dev/) for beautiful icons
-
----
-
-**Happy Learning! 🎓**
+MIT licence.

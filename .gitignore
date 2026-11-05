@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# build output, local data and secrets
+.output
+.nitro
+.tanstack
+onebase_data
+.test-data
+.taste-skill
+.env
+.env.local
+.ui-data
+.dbg-data
+
+# onebase build output
+.onebase
