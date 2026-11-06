@@ -6,7 +6,6 @@ import { api } from "~/lib/api";
 import type { Doc } from "../../onebase/_generated/dataModel";
 import { Footer } from "~/components/Footer";
 import { Header } from "~/components/Header";
-import { Live } from "~/components/Live";
 import { useStartCourse } from "~/components/useStartCourse";
 import { useOwner } from "~/lib/device";
 import { chapterField } from "~/lib/field";
@@ -19,9 +18,7 @@ function CoursePage() {
   return (
     <main>
       <Header />
-      <Live fallback={<Opening />}>
-        <Course id={courseId} />
-      </Live>
+      <Course id={courseId} />
       <Footer />
     </main>
   );

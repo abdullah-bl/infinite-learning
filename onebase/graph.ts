@@ -43,26 +43,34 @@ async function latestAnswers(ctx: QueryCtx, owner: string) {
 const combine = (a: State, b: State): State => (a === "shaky" || b === "shaky" ? "shaky" : a === "known" || b === "known" ? "known" : "new");
 
 type Place = { course: Id<"courses">; courseTitle: string; lesson: number; lessonTitle: string; state: State };
-export type Concept = { key: string; label: string; state: State; where: Place[] };
+export type Concept = { key: string; label: string; state: State; where: Place[]; fading: boolean };
 export type Next = { key: string; label: string; from: Id<"courses">[] };
 export type KnowledgeMap = {
-  courses: { id: Id<"courses">; title: string; done: number; total: number }[];
+  courses: { id: Id<"courses">; title: string; done: number; total: number; library: Id<"library"> | null }[];
   concepts: Concept[];
   next: Next[];
   waiting: number; // courses whose key ideas are still being read
+  writing: { id: Id<"courses">; topic: string }[]; // courses the model is writing right now
 };
 
 export const mine = query({
-  args: { owner: v.string() },
-  handler: async (ctx, { owner }): Promise<KnowledgeMap> => {
+  // `now` marks the ideas whose review is due as fading; the page passes the time it opened
+  args: { owner: v.string(), now: v.optional(v.number()) },
+  handler: async (ctx, { owner, now }): Promise<KnowledgeMap> => {
     assertOwner(owner);
     const courses = await ctx.db.query("courses").withIndex("by_owner", (q) => q.eq("owner", owner)).order("desc").take(100);
-    const out: KnowledgeMap = { courses: [], concepts: [], next: [], waiting: 0 };
+    const out: KnowledgeMap = { courses: [], concepts: [], next: [], waiting: 0, writing: [] };
     const latest = await latestAnswers(ctx, owner);
+    const due = new Set<Id<"lessons">>();
+    if (now !== undefined) {
+      const cards = await ctx.db.query("reviews").withIndex("by_owner_due", (q) => q.eq("owner", owner).lte("due", now)).take(500);
+      for (const card of cards) due.add(card.lesson);
+    }
     const concepts = new globalThis.Map<string, Concept>();
     const own = new Set<string>();
 
     for (const course of courses) {
+      if (course.status === "generating") out.writing.push({ id: course._id, topic: course.topic });
       if (course.status !== "ready") continue;
       own.add(normalise(course.topic));
       own.add(normalise(course.title));
@@ -77,15 +85,17 @@ export const mine = query({
           const key = normalise(label);
           if (!key) continue;
           const place = { course: course._id, courseTitle: course.title, lesson: lesson.position, lessonTitle: lesson.title, state };
+          const fading = state !== "new" && due.has(lesson._id);
           const seen = concepts.get(key);
           if (seen) {
             seen.where.push(place);
             seen.state = combine(seen.state, state);
-          } else concepts.set(key, { key, label, state, where: [place] });
+            seen.fading ||= fading;
+          } else concepts.set(key, { key, label, state, where: [place], fading });
         }
       }
       if (missing) out.waiting++;
-      out.courses.push({ id: course._id, title: course.title, done, total: lessons.length });
+      out.courses.push({ id: course._id, title: course.title, done, total: lessons.length, library: course.library ?? null });
     }
 
     // topics the courses point to that the learner hasn't taken yet
@@ -104,6 +114,44 @@ export const mine = query({
     out.concepts = [...concepts.values()];
     out.next = [...next.values()];
     return out;
+  },
+});
+
+export type Constellation = {
+  id: Id<"library">;
+  title: string;
+  topic: string;
+  description: string;
+  level: Doc<"library">["level"];
+  uses: number;
+  lessons: { title: string; concepts: string[] }[];
+  next: string[];
+};
+
+/** Every shared course in a language with its key ideas: the sky everyone's maps sit in. The
+ *  current version of each course only, most used first. Nothing here belongs to a learner. */
+export const atlas = query({
+  args: { language: v.string() },
+  handler: async (ctx, { language }): Promise<Constellation[]> => {
+    const seen = new Set<string>();
+    const out: Constellation[] = [];
+    // newest first, so the first entry met for a key is its live version
+    for (const e of await ctx.db.query("library").order("desc").take(1500)) {
+      if (e.language !== language || e.retired || seen.has(e.key)) continue;
+      seen.add(e.key);
+      out.push({
+        id: e._id,
+        title: e.title,
+        topic: e.topic,
+        description: e.description,
+        level: e.level,
+        uses: e.uses,
+        lessons: e.lessons.map((l) => ({ title: l.title, concepts: l.concepts ?? [] })),
+        next: e.nextTopics,
+      });
+    }
+    out.sort((a, b) => b.uses - a.uses);
+    return out.slice(0, 150);
   },
 });
 

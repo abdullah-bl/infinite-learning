@@ -289,37 +289,146 @@ button, input, select { font: inherit; color: inherit; }
 .next .poster:hover, .next .poster:focus-visible { color: var(--accent); }
 .next .poster[disabled] { opacity: 0.5; cursor: progress; }
 
-/* my map: the ideas of every course, coloured by how well they are known */
+/* review and other plain headers */
 .map-top { padding: clamp(40px, 6vw, 96px) var(--m) clamp(40px, 5vw, 72px); display: grid; gap: 20px; }
 .map-top .stand { max-width: 46ch; }
-.legend { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: var(--step-small); font-weight: 500; }
-.legend li { display: inline-flex; align-items: center; gap: 10px; }
-.legend .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--white); }
-.legend .lg-known .dot { background: var(--accent); }
-.legend .lg-shaky .dot { background: var(--yellow); }
-.legend .lg-new .dot { background: none; box-shadow: inset 0 0 0 2px var(--white); }
-.legend .lg-next .dot { border-radius: 0; background: var(--pink); }
-.map-board { padding: clamp(24px, 3vw, 48px) var(--m) var(--section); }
-.map-board .board { grid-column: 1 / 10; }
-.map-board .details { grid-column: 10 / 13; align-self: start; position: sticky; top: 24px; display: grid; gap: 12px; }
-.map-board .details h3 { font-size: var(--step-lead); font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; }
-.map-board .details ul { display: grid; gap: 6px; }
-.map-board .details a:not(.btn) { text-underline-offset: 0.18em; }
-.map-board .hint { margin-top: 12px; opacity: 0.8; }
-.kgraph { width: 100%; height: auto; display: block; overflow: visible; }
-.kgraph .edge { stroke: var(--white); stroke-opacity: 0.28; stroke-width: 1.5; transition: opacity 0.2s; }
-.kgraph .edge.to-next { stroke: var(--pink); stroke-opacity: 0.5; stroke-dasharray: 5 6; }
-.kgraph .node { cursor: pointer; transition: opacity 0.2s; outline: none; }
-.kgraph .node text { fill: var(--white); font-size: 15px; font-family: var(--font); font-weight: 500; paint-order: stroke; stroke: var(--black); stroke-width: 4px; stroke-linejoin: round; }
-.kgraph .node.course rect { fill: var(--white); }
-.kgraph .node.course text { fill: var(--black); stroke: none; font-weight: 700; font-size: 16px; }
-.kgraph .node circle { fill: var(--black); stroke: var(--white); stroke-width: 2.5; transition: transform 0.2s var(--ease); }
-.kgraph .node.known circle { fill: var(--accent); stroke: var(--accent); }
-.kgraph .node.shaky circle { fill: var(--yellow); stroke: var(--yellow); }
-.kgraph .node.next rect { fill: var(--pink); }
-.kgraph .node:hover circle, .kgraph .node.on circle { transform: scale(1.4); }
-.kgraph .node.on.course rect, .kgraph .node.course:hover rect { fill: var(--yellow); }
-.kgraph .node:focus-visible circle, .kgraph .node:focus-visible rect { stroke: var(--accent); stroke-width: 4; }
+/* the sky: every course a constellation, every key idea a star. Lines here are the figures of
+   the constellations, so they are data, not ornament. */
+.sky-home { padding-top: var(--section); }
+.sky-title { padding: 0 var(--m) clamp(28px, 3.5vw, 48px); align-items: end; }
+.sky-home .sky-title h2 { grid-column: 1 / 8; }
+.sky-home .sky-title .side { grid-column: 8 / 13; display: grid; gap: 20px; justify-items: start; }
+.sky-title .stand { font-size: var(--step-body); max-width: 52ch; }
+.sky-page .sky-title { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px 40px; padding-top: clamp(24px, 3vw, 40px); padding-bottom: clamp(20px, 2vw, 28px); }
+.sky-page .sky-title .stand { max-width: 60ch; }
+
+.sky-stage { position: relative; overflow: hidden; background: var(--black); }
+.sky.full .sky-stage { height: max(560px, calc(100svh - 200px)); }
+.sky.embedded .sky-stage { height: min(86svh, 900px); }
+.sky-wait { position: absolute; inset: 0; display: grid; place-content: center; }
+.sky-svg { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; }
+.sky.embedded .sky-svg { touch-action: pan-y; }
+.sky-svg.grabbing { cursor: grabbing; }
+.sky-svg:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.sky-svg .mk { transform: scale(var(--sk, 1)); }
+.sky-svg .lb { transform: scale(var(--ik, 1)); pointer-events: none; }
+.sky-svg text { font-family: var(--font); paint-order: stroke; stroke: var(--black); stroke-linejoin: round; }
+
+.sky-svg .fig { stroke: var(--white); stroke-opacity: 0.2; stroke-width: 1.25; vector-effect: non-scaling-stroke; }
+.sky-svg .fig.mine { stroke: var(--accent); stroke-opacity: 0.5; }
+.sky-svg .fig.bridge { stroke-dasharray: 1 5; stroke-linecap: round; stroke-opacity: 0.3; }
+.sky-svg .route { stroke: var(--pink); stroke-opacity: 0.4; stroke-width: 1.5; stroke-dasharray: 2 7; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.sky-svg :is(.fig, .route) { pointer-events: none; }
+.sky-svg .const .lb { pointer-events: auto; }
+.sky-svg .hit { fill: var(--white); fill-opacity: 0; cursor: pointer; transition: fill-opacity 0.25s; }
+.sky-svg .hit:hover { fill-opacity: 0.04; }
+
+.sky-svg .star, .sky-svg .u { cursor: pointer; }
+.sky-svg .pad { fill: transparent; }
+.sky-svg .dot { fill: var(--white); transform-box: fill-box; transform-origin: center; transition: transform 0.25s var(--ease); }
+.sky-svg .star.dark .dot { fill-opacity: 0.6; }
+.sky-svg .star.unread .dot { fill: var(--black); stroke: var(--white); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.sky-svg .star.lit .dot { fill: var(--accent); }
+.sky-svg .star.shaky .dot { fill: var(--yellow); animation: flicker 2.6s steps(1) infinite; }
+.sky-svg .star.fading .dot { fill: var(--accent); animation: fade 4s ease-in-out infinite; }
+.sky-svg .star:hover .dot, .sky-svg .star.on .dot { transform: scale(1.6); }
+.sky-svg .star.on .dot { stroke: var(--white); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.sky-svg .star text, .sky-svg .u text { fill: var(--white); font-size: 13px; font-weight: 500; stroke-width: 3px; }
+.sky-svg .star.lit text { fill: var(--accent); }
+.sky-svg .star.shaky text { fill: var(--yellow); }
+.sky-svg .u rect { fill: var(--pink); }
+.sky-svg .u text { fill: var(--pink); }
+.sky-svg .u:hover rect, .sky-svg .u.on rect { fill: var(--white); }
+
+/* labels by zoom: far, only the constellations; nearer, your own stars; close, every star */
+.sky-svg .star .lb, .sky-svg .u .lb { opacity: 0; transition: opacity 0.2s; }
+.sky-svg[data-z="1"] :is(.star.lit, .star.shaky, .star.fading, .u) .lb,
+.sky-svg[data-z="2"] :is(.star, .u) .lb,
+.sky-svg :is(.star, .u):is(:hover, .on) .lb,
+.sky-svg.dim :is(.star, .u).hl .lb { opacity: 1; }
+.sky-svg .crowded .lb, .sky-svg[data-z] .crowded .lb { opacity: 0; }
+
+.sky-svg .const { cursor: pointer; outline: none; }
+.sky-svg .const text { fill: var(--white); fill-opacity: 0.78; font-size: 17px; font-weight: 700; letter-spacing: -0.02em; text-transform: lowercase; stroke-width: 5px; transition: fill 0.2s; }
+.sky-svg .const.mine text { fill-opacity: 1; }
+.sky-svg .const:hover text, .sky-svg .const.on text, .sky-svg .const:focus-visible text { fill: var(--accent); fill-opacity: 1; }
+.sky-svg[data-z="2"] .const:not(.on) text { fill-opacity: 0.5; }
+.sky-svg .const.writing .core { fill: var(--pink); }
+.sky-svg .const.writing .pulse { fill: none; stroke: var(--pink); stroke-width: 2; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: center; animation: pulse 1.8s var(--ease) infinite; }
+.sky-svg .const.writing text { fill: var(--pink); fill-opacity: 1; }
+
+/* picking something brings it and what it touches forward */
+.sky-svg :is(.star, .const, .u, .fig, .route) { transition: opacity 0.35s; }
+.sky-svg.dim :is(.star, .const, .u, .fig, .route):not(.hl) { opacity: 0.13; }
+
+/* the sky draws itself in, constellation by constellation; new stars ignite */
+.sky-svg :is(.star, .const) { animation: sky-in 0.9s var(--ease) backwards; animation-delay: calc(min(var(--i, 0), 30) * 40ms + 150ms); }
+.sky-svg .star.ignite .dot { animation: light-up 1.4s var(--ease) 1.4s backwards; }
+.sky-svg .star.ignite .ring { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: center; animation: ignite 1.8s var(--ease) 1.6s backwards; opacity: 0; }
+@keyframes sky-in { from { opacity: 0; } }
+@keyframes light-up { from { fill: var(--white); fill-opacity: 0.6; transform: scale(0.6); } 60% { transform: scale(2); } }
+@keyframes ignite { from { transform: scale(1); opacity: 1; } to { transform: scale(7); opacity: 0; } }
+@keyframes flicker { 0%, 100% { fill-opacity: 1; } 82% { fill-opacity: 0.35; } 88% { fill-opacity: 1; } 93% { fill-opacity: 0.5; } }
+@keyframes fade { 0%, 100% { fill-opacity: 0.9; } 50% { fill-opacity: 0.25; } }
+@keyframes pulse { from { transform: scale(0.6); opacity: 1; } to { transform: scale(2.4); opacity: 0; } }
+
+.sky-tools { position: absolute; inset-inline-start: var(--m); bottom: var(--m); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; pointer-events: none; }
+.sky-tools > * { pointer-events: auto; }
+.sky-zoom { display: flex; gap: 4px; }
+.sky-zoom button, .sky-lens button { min-height: 44px; min-width: 44px; padding: 0 14px; border: 0; border-radius: 0; background: var(--white); color: var(--black); font-size: var(--step-small); font-weight: 700; cursor: pointer; text-transform: lowercase; transition: transform 0.16s var(--ease), background-color 0.16s; }
+.sky-zoom button:first-child, .sky-zoom button:nth-child(2) { font-size: 22px; padding: 0; }
+.sky-zoom button:hover, .sky-lens button:hover { transform: translateY(-2px); }
+.sky-zoom button:active, .sky-lens button:active { transform: translateY(1px) scale(0.97); }
+.sky-lens { display: flex; gap: 4px; }
+.sky-lens button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.sky-hint { position: absolute; left: 50%; top: 50%; translate: -50% -50%; padding: 12px 18px; background: var(--white); color: var(--black); font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+.sky-hint.show { opacity: 1; }
+.sky-peek { position: absolute; top: 12px; inset-inline: var(--m); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 14px; background: var(--white); color: var(--black); animation: panel-in 0.35s var(--ease); }
+.sky-peek strong { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sky-peek .btn { min-height: 40px; padding: 0 16px; font-size: var(--step-small); background: var(--black); color: var(--white); flex: none; }
+
+/* beside the sky on a screen, under it on a phone: what is picked, and where to go with it */
+.sky-panel { background: var(--white); color: var(--black); }
+.sky-stage .sky-panel { position: absolute; top: var(--m); bottom: var(--m); inset-inline-end: var(--m); width: min(400px, calc(34% - 32px)); overflow-y: auto; overscroll-behavior: contain; }
+.sky-panel .card { display: grid; gap: 14px; align-content: start; padding: clamp(20px, 2vw, 28px); animation: panel-in 0.4s var(--ease); }
+@keyframes panel-in { from { opacity: 0; transform: translateY(12px); } }
+.sky-panel h3 { font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+.sky-panel h4 { font-weight: 700; margin-top: 8px; }
+.sky-panel .btn { justify-self: start; }
+.sky-panel .back { justify-self: start; font-size: var(--step-small); }
+.sky-panel .meta, .sky-panel .state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sky-panel .yours { font-weight: 500; }
+.sky-panel .news { background: var(--accent); padding: 10px 14px; font-weight: 500; }
+.sky-panel .fade-row { display: grid; gap: 10px; justify-items: start; background: var(--black); color: var(--white); padding: 14px; }
+.sky-search { display: grid; gap: 6px; margin-top: 6px; }
+.sky-search input { min-height: 52px; padding: 0 16px; border: 0; border-radius: 0; background: #efefef; font-size: var(--step-body); }
+.sky-search input:focus-visible { outline: 3px solid var(--blue); outline-offset: 0; }
+.sky-panel .results, .sky-panel .popular ul, .sky-panel .leads ul, .sky-panel .places { display: grid; }
+.row-btn { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px; margin-inline: -10px; width: calc(100% + 20px); border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; transition: background-color 0.15s; }
+.row-btn:hover, .row-btn:focus-visible { background: #efefef; }
+.row-btn > span:last-child:not(.sw) { display: grid; }
+.row-btn strong { font-weight: 500; }
+.sky-panel .lessons { display: grid; gap: 16px; margin-top: 4px; }
+.sky-panel .lessons li { display: grid; gap: 8px; }
+.sky-panel .lesson-t { font-weight: 500; text-align: start; text-decoration-thickness: 1.5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { min-height: 32px; padding: 4px 10px; border: 0; border-radius: 0; background: #efefef; color: var(--black); font: inherit; font-size: var(--step-small); cursor: pointer; transition: transform 0.15s var(--ease); }
+.chip:hover { transform: translateY(-1px); }
+.chip.lit { background: var(--accent); }
+.chip.shaky { background: var(--yellow); }
+.chip.fading { background: #b8ecd3; }
+.sky-panel .none { display: grid; gap: 12px; }
+.sw { display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 50%; background: #9a9a9a; }
+.sw.lit { background: var(--accent); }
+.sw.shaky { background: var(--yellow); }
+.sw.fading { background: #b8ecd3; }
+.sw.unread { background: var(--white); outline: 2px solid var(--black); outline-offset: -2px; }
+.sw.uncharted { border-radius: 0; background: var(--pink); }
+.sw.c { border-radius: 0; width: 14px; height: 4px; background: var(--black); }
+.sky-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--step-small); }
+.sky-legend li { display: flex; align-items: center; gap: 10px; }
+.sky > .sky-panel { padding-bottom: 24px; }
+.sky > .sky-panel .card { padding-inline: var(--m); }
 .map-lists { padding: var(--section) var(--m); }
 .map-lists h2 { margin-bottom: clamp(28px, 4vw, 56px); }
 .map-lists .col { grid-column: span 3; }
@@ -358,10 +467,10 @@ button, input, select { font: inherit; color: inherit; }
 .js [data-reveal].in { opacity: 1; transform: none; }
 
 @media (max-width: 900px) {
-  .top .tab { width: auto; flex: 1; gap: 18px; padding: 0 12px; min-width: 0; }
-  .top .more { padding: 0 12px; }
+  .top .tab { width: auto; flex: 1; gap: 18px; padding: 0 var(--m); min-width: 0; }
+  .top .more { padding: 0 var(--m); }
   .top .wide, .top .wide-only { display: none; }
-  .top .mark { font-size: var(--step-body); padding: 0 12px; }
+  .top .mark { font-size: var(--step-body); padding: 0 var(--m); }
   .band { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); height: 38svh; }
   .t-atlas { grid-column: 1; grid-row: 1; } .t-live { grid-column: 2 / 4; grid-row: 1 / 3; }
   .t-euclid, .t-globe, .t-planets { display: none; }
@@ -391,11 +500,11 @@ button, input, select { font: inherit; color: inherit; }
   .course-top .desc { grid-column: 1 / 13; }
   .lesson .body, .lesson .side { grid-column: 1 / 13; }
   .writing-live .status, .draft { grid-column: 1 / 13; }
-  .map-board .board, .map-board .details { grid-column: 1 / 13; }
-  .map-board .details { position: static; margin-top: 24px; }
+  .sky-home .sky-title h2, .sky-home .sky-title .side { grid-column: 1 / 13; }
+  .sky-home .sky-title .side { margin-top: 16px; }
+  .sky.full .sky-stage { height: 68svh; min-height: 420px; }
+  .sky.embedded .sky-stage { height: 66svh; }
   .map-lists .col { grid-column: 1 / 13; margin-bottom: 28px; }
-  .kgraph .node text { font-size: 20px; }
-  .kgraph .node.course text { font-size: 20px; }
   .draft { margin-top: 32px; max-height: 50svh; }
   .lesson .side { margin-bottom: 20px; }
 }

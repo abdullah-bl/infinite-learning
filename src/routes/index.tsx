@@ -6,6 +6,7 @@ import { Footer } from "~/components/Footer";
 import { Hero } from "~/components/Hero";
 import { HowItWorks } from "~/components/HowItWorks";
 import { Library } from "~/components/Library";
+import { SkySection } from "~/components/SkySection";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -17,6 +18,7 @@ function Home() {
   return (
     <main id="top">
       <Hero />
+      <SkySection />
       <HowItWorks />
       <Library />
       <Faq />

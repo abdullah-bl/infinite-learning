@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useI18n } from "~/lib/i18n";
 import { Header } from "./Header";
-import { Live } from "./Live";
 import { TopicForm } from "./TopicForm";
 
 /** A mosaic masthead: photographs in grey, flat colour tiles, and one tile that sets what you type. */
@@ -33,9 +32,7 @@ export function Hero() {
             <span className="line"><span style={{ ["--d" as string]: "110ms" }}>{t("hero.t2")}</span></span>
           </h1>
           <div className="after">
-            <Live fallback={<div style={{ minHeight: 120 }} />}>
-              <TopicForm topic={topic} onTopic={setTopic} />
-            </Live>
+            <TopicForm topic={topic} onTopic={setTopic} />
           </div>
         </div>
       </section>

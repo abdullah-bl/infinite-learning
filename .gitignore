@@ -24,9 +24,6 @@ dist-ssr
 *.sw?
 
 # build output, local data and secrets
-.output
-.nitro
-.tanstack
 onebase_data
 .test-data
 .taste-skill

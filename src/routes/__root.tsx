@@ -1,51 +1,22 @@
-/// <reference types="vite/client" />
-import { createRootRoute, HeadContent, Link, Outlet, Scripts } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useI18n } from "~/lib/i18n";
-import appCss from "~/styles.css?url";
 
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Infinite Learning: a short course on anything" },
-      { name: "description", content: "Type any topic and an AI writes you a short course with lessons and quizzes, in about a minute. No account." },
-      { name: "theme-color", content: "#1423b8" },
-    ],
-    links: [
-      { rel: "preconnect", href: "https://api.fontshare.com" },
-      { rel: "preconnect", href: "https://cdn.fontshare.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://api.fontshare.com/v2/css?f[]=pilcrow-rounded@400,500,700&display=swap" },
-      // the Arabic face; the browser only downloads it for pages that use Arabic
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;700&display=swap" },
-      { rel: "stylesheet", href: appCss },
-    ],
-  }),
-  // content is only hidden for its entrance when scripts run
-  // `js` lets entrances hide content; the language and direction are set before first paint so an
-  // Arabic reader never sees the page flip.
-  scripts: () => [{ children: "(function(d){d.classList.add('js');try{var s=JSON.parse(localStorage.getItem('il.settings')||'{}');var l=s.ui||((navigator.language||'').slice(0,2)=='ar'?'ar':'en');if(l=='ar'){d.lang='ar';d.dir='rtl'}}catch(e){}})(document.documentElement)" }],
-  shellComponent: Shell,
-  component: () => <Outlet />,
+  component: Root,
   notFoundComponent: NotFound,
 });
 
-function Shell({ children }: { children: ReactNode }) {
+function Root() {
   useReveal();
+  // keep the page's language and direction in step with the setting (the inline script in
+  // index.html sets them before first paint)
   const { lang, dir } = useI18n();
-  return (
-    <html lang={lang} dir={dir} suppressHydrationWarning>
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = dir;
+  }, [lang, dir]);
+  return <Outlet />;
 }
 
 /** Adds `.in` to every [data-reveal] element as it scrolls into view, including ones that appear later. */
@@ -86,6 +57,9 @@ function useReveal() {
 
 function NotFound() {
   const { t } = useI18n();
+  useEffect(() => {
+    document.title = `${t("nf.h")} · ${t("brand")}`;
+  }, [t]);
   return (
     <main className="field f1 lost">
       <h1 className="display">{t("nf.h")}</h1>

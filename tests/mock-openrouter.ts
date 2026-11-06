@@ -1,5 +1,7 @@
 // A stand-in for OpenRouter so the backend can be tested without a key or network.
 // Run: bun tests/mock-openrouter.ts   (listens on :8099)
+import { fixtureCourse, skyFixtures } from "./sky-fixtures";
+
 const course = {
   title: "Sourdough Basics",
   description: "Bake a loaf of sourdough with a starter you keep alive.",
@@ -72,8 +74,11 @@ Bun.serve({
     const known = /They already know: ([^\n]+)\./.exec(prompt)?.[1].split("; ") ?? [];
     const words = topic.split(/\s+/).filter((w) => w.length > 3);
     const buildsOn = known.filter((k) => words.some((w) => k.toLowerCase().includes(w)));
-    const plain = prompt.includes('"buildsOn"') ? { ...base, buildsOn } : base;
-    const content = "```json\n" + JSON.stringify(wantsConcepts ? conceptsAnswer : wantsQuiz ? (ar ? arQuiz : quiz) : ar ? arCourse : plain) + "\n```";
+    // topics with a fixture get their own course, so the sky has real variety to show
+    const fixture = skyFixtures[topic];
+    const written = fixture ? fixtureCourse(fixture, ar) : base;
+    const plain = prompt.includes('"buildsOn"') ? { ...written, buildsOn } : written;
+    const content = "```json\n" + JSON.stringify(wantsConcepts ? conceptsAnswer : wantsQuiz ? (ar ? arQuiz : quiz) : ar && !fixture ? arCourse : plain) + "\n```";
     if (!body.stream) return Response.json({ model: "mock/free", choices: [{ message: { content } }] });
     // Stream it the way OpenRouter does: SSE chunks, a keep-alive comment, then [DONE].
     const pieces = content.match(/[\s\S]{1,24}/g) ?? [];

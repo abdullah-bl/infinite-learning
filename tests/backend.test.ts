@@ -286,3 +286,38 @@ test("review: wrong answers come back tomorrow, right ones later, and a good rev
   await client.mutation(api.courses.remove, { owner, id });
   expect((await client.query(api.reviews.due, { owner, now: now + 100 * day })).count).toBe(0);
 }, 60_000);
+
+test("the sky: every shared course with its ideas, and a learner's stars fading when a review is due", async () => {
+  const owner = crypto.randomUUID() + crypto.randomUUID();
+  const id = await client.mutation(api.courses.create, { owner, topic: "black holes", language: "English", level: "beginner", lessons: 3 });
+  // while it's being written, the learner's sky shows it forming
+  expect((await client.query(api.graph.mine, { owner })).writing.map((w) => w.id)).toContain(id);
+  const course = await until(async () => {
+    const got = await client.query(api.courses.get, { owner, id });
+    return got?.course.status === "ready" ? got : null;
+  });
+
+  // the shared sky has it once, with each lesson's ideas, and nothing about who wrote it
+  const sky = await client.query(api.graph.atlas, { language: "English" });
+  const entry = sky.find((c) => c.topic === "black holes");
+  expect(entry?.title).toBe("how black holes work");
+  expect(entry?.lessons[1].concepts).toContain("event horizon");
+  expect(entry?.next).toContain("how stars die");
+  expect(JSON.stringify(entry)).not.toContain(owner);
+  expect(sky.filter((c) => c.topic === "black holes").length).toBe(1);
+  expect((await client.query(api.graph.atlas, { language: "Arabic" })).some((c) => c.topic === "black holes")).toBe(false);
+
+  // the learner's map knows which shared course their copy came from
+  const map = await client.query(api.graph.mine, { owner });
+  expect(map.courses[0].library).toBe(entry?.id);
+  expect(map.writing.length).toBe(0);
+
+  // a right answer is known now, and fades once its review is due
+  const lesson = course.lessons[0]._id;
+  await client.mutation(api.lessons.requestQuiz, { owner, lesson });
+  const quiz = await until(async () => (await client.query(api.courses.get, { owner, id }))?.lessons[0].questions);
+  for (let q = 0; q < quiz.length; q++) await client.mutation(api.lessons.answer, { owner, lesson, question: q, choice: quiz[q].correct });
+  const gravity = async (now: number) => (await client.query(api.graph.mine, { owner, now })).concepts.find((c) => c.key === "gravity");
+  expect(await gravity(Date.now())).toMatchObject({ state: "known", fading: false });
+  expect(await gravity(Date.now() + 4 * 86_400_000)).toMatchObject({ state: "known", fading: true });
+}, 60_000);

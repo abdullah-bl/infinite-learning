@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { api } from "~/lib/api";
 import { useOwner } from "~/lib/device";
 import { useI18n } from "~/lib/i18n";
-import { Live } from "./Live";
 
 /** The visitor's courses, one per line at poster size. Titles left, one fact right. */
 export function Library() {
@@ -15,9 +14,7 @@ export function Library() {
         <h2 id="courses-h" className="head" data-reveal>{t("lib.h")}</h2>
         <Link to="/map" className="btn ink">{t("map.see")}</Link>
       </div>
-      <Live fallback={<p className="lead">{t("lib.loading")}</p>}>
-        <List />
-      </Live>
+      <List />
     </section>
   );
 }

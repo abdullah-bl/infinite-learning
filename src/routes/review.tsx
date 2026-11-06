@@ -3,24 +3,19 @@ import { useMutation, useQuery } from "onebase/react";
 import { useEffect, useState } from "react";
 import { Footer } from "~/components/Footer";
 import { Header } from "~/components/Header";
-import { Live } from "~/components/Live";
 import { api } from "~/lib/api";
 import { useOwner } from "~/lib/device";
 import { errorText, useI18n, type T } from "~/lib/i18n";
 
 export const Route = createFileRoute("/review")({
-  head: () => ({ meta: [{ title: "Review · Infinite Learning" }] }),
   component: ReviewPage,
 });
 
 function ReviewPage() {
-  const { t } = useI18n();
   return (
     <main>
       <Header />
-      <Live fallback={<section className="field f1 map-top"><h1 className="display">{t("rv.h")}</h1></section>}>
-        <Review />
-      </Live>
+      <Review />
       <Footer />
     </main>
   );

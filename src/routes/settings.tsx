@@ -6,7 +6,6 @@ import { setOwner, updateSettings, useOwner, useSettings, type Level } from "~/l
 import { useI18n, type Key } from "~/lib/i18n";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Settings · Infinite Learning" }] }),
   component: Settings,
 });
 
