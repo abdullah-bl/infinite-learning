@@ -553,6 +553,12 @@ function Explorer({ sky, mine, embedded, rtl, ignite }: { sky: Sky; mine: MyMap 
             <button className="fit" onClick={() => (setSel(null), fitAll())}>{t("sky.fit")}</button>
           </div>
         </div>
+        {sky.constellations.length === 0 && (
+          <div className="sky-empty">
+            <p className="lead">{t("sky.empty")}</p>
+            <Link to="/" hash="start" className="btn">{t("lib.first")}</Link>
+          </div>
+        )}
         <p id="sky-keys" className="sr">{t("sky.keys")}</p>
         <p className={`sky-hint small${hint ? " show" : ""}`} aria-hidden="true">{t("sky.hint_ctrl")}</p>
 

@@ -47,11 +47,11 @@ Change the app name in [`fly.toml`](fly.toml) to one nobody has taken, and keep 
 ```bash
 fly apps create infinite-learning
 fly volumes create infinite_data -a infinite-learning -r fra -n 1 --size 1
-fly secrets set -a infinite-learning OPENROUTER_API_KEY=sk-or-... ONEBASE_ADMIN_KEY=$(openssl rand -hex 24)
-fly deploy
+fly secrets set -a infinite-learning OPENROUTER_API_KEY=sk-or-...
+fly deploy --ha=false
 ```
 
-SQLite allows one writer, so keep exactly one machine; don't scale it out. The dashboard is at `/_admin` and asks for `ONEBASE_ADMIN_KEY`. Add `ONEBASE_BACKUP=s3://...` to keep snapshots off the volume (see the OneBase backups guide).
+It runs on the smallest machine (shared-cpu-1x, 256 MB) and suspends when no one is connected, waking on the next request. SQLite allows one writer, so keep exactly one machine (`--ha=false`); don't scale it out. If the default builder stalls, add `--remote-only --depot=false`. The dashboard is at `/_admin`; its key is in `/data/admin.key` (`fly ssh console -a infinite-learning -C "cat /data/admin.key"`), or set your own with the `ONEBASE_ADMIN_KEY` secret. Add `ONEBASE_BACKUP=s3://...` to keep snapshots off the volume (see the OneBase backups guide).
 
 **Changing the model.** Set `OPENROUTER_MODELS` (up to three ids, comma separated): `fly secrets set -a infinite-learning OPENROUTER_MODELS=openrouter/free,google/gemma-4-31b-it:free`.
 

@@ -1,7 +1,8 @@
 # The whole app is one OneBase executable (backend, AI calls and the built web app). One-time setup is in the README, then:
 #   fly deploy
 # Change `app` to a name nobody has taken, and keep the two URLs below in step with it.
-# OPENROUTER_API_KEY and ONEBASE_ADMIN_KEY are secrets: `fly secrets set ...`
+# OPENROUTER_API_KEY is a secret: `fly secrets set ...`. The dashboard's admin key is written to
+# /data/admin.key on first start unless ONEBASE_ADMIN_KEY is set.
 app = "infinite-learning"
 primary_region = "fra"
 
@@ -21,10 +22,12 @@ primary_region = "fra"
 [http_service]
   internal_port = 8080
   force_https = true
-  # SQLite allows one writer, so run exactly one machine. Keep it up so live queries stay connected.
-  auto_stop_machines = "off"
+  # SQLite allows one writer, so run exactly one machine. It suspends when no one is connected
+  # (an open page keeps its live connection, so it stays up while anyone is reading) and wakes on
+  # the next request in about a second. Crons only run while it is awake, which is when they matter.
+  auto_stop_machines = "suspend"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
   [http_service.concurrency]
     type = "connections"
@@ -38,6 +41,8 @@ primary_region = "fra"
     timeout = "5s"
     grace_period = "15s"
 
+# the smallest machine: OneBase uses about 15 MB
 [[vm]]
   size = "shared-cpu-1x"
   memory = "256mb"
+  cpus = 1
